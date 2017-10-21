@@ -5,15 +5,16 @@ Customer: Ability to buy products, ability to co-purchase products.
 3rd Party Coin: Creation of the 3rd party coin. */
 
 
-pragma solidity ^0.4.6;
+pragma solidity ^0.4.14;
 
-/* I am thinking along the lines of anybody being able to create their own shopfront. So
-anyone can launch a shopfront and allow merchants to sell there. */
 import "./Stoppable.sol";
-import "./ShopFront.sol";
-import "./BetterToken.sol";
+import "./ShopFrontHubInterface.sol";
+import "./ShopFrontFactoryInterface.sol";
+import "./ShopFrontInterface.sol"; 
 
-contract ShopFrontHub is Stoppable {
+ 
+
+contract ShopFrontHub is Stoppable, ShopFrontHubInterface, ShopFrontFactoryInterface, ShopFrontInterface {
     
     address[] public shopfronts; //Keep list of shopfronts created.
     //Mapping below is a safeguard feature for using addresses within other functions
@@ -30,21 +31,26 @@ contract ShopFrontHub is Stoppable {
         bool    avail; 
     }
     
+    ShopFrontFactoryInterface f; 
     AllProducts public allProducts; 
     
+
     //Checking if the shopfront exists
     modifier onlyIfShopfront(address shopfront) { 
-        if (shopfrontExists[shopfront]!=true)throw; 
+        require(shopfrontExists[shopfront]==true); 
         _;
     }
     
     event LogNewGlobalProduct(address shopfront, address merchant, bytes32 anId, uint price, uint altprice, uint stock);
-    event LogNewShopfront(address owner, address shopfront);
+    
     event LogShopfrontStop(address sender, address shopfront);
     event LogShopfrontStart(address sender, address shopfront);
     event LogNewShopfrontOwner(address sender, address shopfront, address newOwner);
     
-    
+    //Constructor?
+    function ShopFrontHUb(){
+        f = ShopFrontFactoryInterface(this);
+    }
     
     function getShopfrontCount()
         public 
@@ -59,11 +65,11 @@ contract ShopFrontHub is Stoppable {
         returns (address shopfrontContract)
         {
             //Casting the campaign, good to mark trusted/untrusted
-            ShopFront trustedShopfront = new ShopFront(msg.sender); 
-             
+            address trustedShopfront =  f.ShopFrontFactory();
+            
             shopfronts.push(trustedShopfront);
             shopfrontExists[trustedShopfront] = true; 
-            LogNewShopfront(msg.sender, trustedShopfront);
+            
             return trustedShopfront; 
         }
      
@@ -91,9 +97,9 @@ contract ShopFrontHub is Stoppable {
         returns (bool success)
     {
         
-        ShopFront trustedShopfront = ShopFront(shopfront);
+        //ShopFront trustedShopfront = ShopFront(shopfront);
         LogShopfrontStop(msg.sender, shopfront);
-        return(trustedShopfront.runSwitch(false));
+        return(ShopFrontInterface(shopfront).runSwitch(false));
     }
     
     function startShopfront(address shopfront)
@@ -101,9 +107,9 @@ contract ShopFrontHub is Stoppable {
         onlyIfShopfront(shopfront)
         returns (bool succcess)
     {
-        ShopFront trustedShopfront = ShopFront(shopfront); 
+         
         LogShopfrontStart(msg.sender, shopfront);
-        return(trustedShopfront.runSwitch(true));
+        return(ShopFrontInterface(shopfront).runSwitch(true));
     }
     
     function changeShopfrontOwner(address shopfront, address newOwner)
@@ -111,9 +117,9 @@ contract ShopFrontHub is Stoppable {
         onlyIfShopfront(shopfront)
         returns (bool success)
     {
-        ShopFront trustedShopfront = ShopFront(shopfront); 
+         
         LogNewShopfrontOwner(msg.sender, shopfront, newOwner);
-        return(trustedShopfront.changeOwner(newOwner));
+        return(ShopFrontInterface(shopfront).changeOwner(newOwner));
     }
     
 }

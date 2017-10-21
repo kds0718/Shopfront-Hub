@@ -1,8 +1,10 @@
 // A New Shopfront Coin
 
-pragma solidity ^0.4.16;
+pragma solidity ^0.4.14;
 
-contract BetterToken {
+import "./BetterTokenInterface.sol";
+
+contract BetterToken is BetterTokenInterface {
     // Public variables of the token
     string public name;
     string public symbol;
@@ -22,11 +24,9 @@ contract BetterToken {
      *
      * Initializes contract with initial supply tokens to the creator of the contract
      */
-    function BetterToken(
-        uint256 initialSupply,
-        string tokenName,
-        string tokenSymbol
-    ) public {
+    function BetterToken( uint256 initialSupply, string tokenName, string tokenSymbol) 
+        public 
+    {
         totalSupply = initialSupply * 10 ** uint256(decimals);  // Update total supply with the decimal amount
         balanceOf[msg.sender] = totalSupply;                // Give the creator all initial tokens
         name = tokenName;                                   // Set the name for display purposes

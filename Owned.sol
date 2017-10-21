@@ -1,6 +1,6 @@
-//This will be the owner of the website/shopfront
+//This will be the owner of the website/shopfront hub
 
-pragma solidity ^0.4.6;
+pragma solidity ^0.4.14;
 
 
 contract Owned {
@@ -8,7 +8,7 @@ contract Owned {
     
     event LogNewOwner(address sender,address oldOwner, address newOwner);
     
-    modifier onlyOwner  { if(msg.sender != owner) throw; _;}
+    modifier onlyOwner  { require(msg.sender==owner); _;}
     
     function Owned(){
         owner = msg.sender; 
@@ -19,7 +19,7 @@ contract Owned {
         returns (bool success)
         {
             //Ensuring someone cannot forget to supply an address
-            if(newOwner == 0) throw; 
+            require(newOwner != 0); 
             LogNewOwner(msg.sender, owner, newOwner); 
             owner = newOwner; 
             return true; 
