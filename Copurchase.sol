@@ -29,8 +29,7 @@ contract Copurchase is CopurchaseInterface {
     uint    public amount;
    
     event OnUnfinishedConfirmation(bytes32 key);
-    event  LogProductCoPurchased(address Buyer1, address Buyer2 , bytes32 boughtId, uint boughtStock);
-    
+        
     /*Aiming to make each copurchase contract unique to each purchase here - this makes it easier to
     verify that the payment/balance of this contract is for a specific purchase rather than just a 
     general agreement between two parties to purchase 'something' - sendToShopfront() might accidently send
@@ -41,13 +40,13 @@ contract Copurchase is CopurchaseInterface {
     {
         require(msg.sender != buyer2 && buyer2 != 0);
         buyers[msg.sender]=true;
-        buyers[buyer2] =true;
+        buyers[buyerno2] =true;
         theShopfront = shopfront; 
         itemId = theId; 
         amount = howMany; 
         copurchaseBalance[msg.sender] += msg.value;
         buyer1 = msg.sender;
-        buyerno2 = buyer2; 
+        buyer2 = buyerno2; 
         
     }
     
@@ -113,7 +112,7 @@ contract Copurchase is CopurchaseInterface {
         require(msg.sender == theShopfront);
         uint toSend = this.balance;
         shopfront.transfer(toSend);
-        LogProductCoPurchased(buyer1, buyer2, theId, howMany);
+        /*To Do - Think about event implementation. */
         return true; 
     }
         

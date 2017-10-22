@@ -1,22 +1,25 @@
 pragma solidity ^0.4.14;
 
-import "./ShopFront.sol";
-import "./ShopFrontFactoryInterface.sol";
-import "./ShopFrontHub.sol";
 
-contract ShopFrontFactory is ShopFrontFactoryInterface, ShopFrontHub, ShopFront {
+import "./ShopFrontFactoryInterface.sol";
+import "./ShopFront.sol"; 
+
+
+contract ShopFrontFactory is ShopFrontFactoryInterface {
     
+    ShopFront S;
+
     event LogNewShopfront(address owner, address shopfront);
 
-    function ShopFrontFactory()  
+    function newShopFront()  
         public
-        onlyOwner
+        
         returns (address shopfrontContract)
         {
             //Casting the campaign, good to mark trusted/untrusted
-            ShopFront anewShopfront = new ShopFront(msg.sender);
+            S = new ShopFront(msg.sender);
                         
-            LogNewShopfront(msg.sender, anewShopfront);
-            return anewShopfront; 
+            LogNewShopfront(msg.sender, S);
+            return S; 
         }
 }

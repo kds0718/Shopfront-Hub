@@ -3,16 +3,18 @@
 pragma solidity ^0.4.14;
 
 import "./Stoppable.sol";
-import "./Copurchase.sol"; /* CopurchaseInterface Included */
+import "./Copurchase.sol"; 
+import "./ShopFrontHub.sol";
 import "./BetterTokenInterface.sol"; 
-import "./ShopFrontHubInterface.sol";
+import "./CopurchaseInterface.sol";
 
-contract ShopFront is Stoppable, Copurchase, BetterTokenInterface, ShopFrontHubInterface
+contract ShopFront is Stoppable, Copurchase
 
 {
     address public admin; //Site admin
 
-    address public theHub;     
+    address public theHub;    
+    
     
     //Struct of all products on the website
     struct OurProducts {
@@ -22,6 +24,9 @@ contract ShopFront is Stoppable, Copurchase, BetterTokenInterface, ShopFrontHubI
         uint    stock; 
         bool    avail; //True when a product is available. False when it is removed. 
     }
+    
+    //BetterToken Interface
+    BetterTokenInterface B; 
     
     /*Map the ID of each object to the struct of their Merchant, Price, & Stock */
     mapping (bytes32 => OurProducts) public ourProducts; 

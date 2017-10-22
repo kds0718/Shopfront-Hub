@@ -8,14 +8,19 @@ Customer: Ability to buy products, ability to co-purchase products.
 pragma solidity ^0.4.14;
 
 import "./Stoppable.sol";
+import "./StoppableInterface.sol";
+import "./OwnedInterface.sol";
 import "./ShopFrontHubInterface.sol";
 import "./ShopFrontFactoryInterface.sol";
-import "./ShopFrontInterface.sol"; 
 
  
 
-contract ShopFrontHub is Stoppable, ShopFrontHubInterface, ShopFrontFactoryInterface, ShopFrontInterface {
+contract ShopFrontHub is Stoppable, ShopFrontHubInterface {
     
+    //ShopFrontFactory Interface
+    ShopFrontFactoryInterface f; 
+    
+
     address[] public shopfronts; //Keep list of shopfronts created.
     //Mapping below is a safeguard feature for using addresses within other functions
     mapping(address => bool) shopfrontExists; //Default is false, checking if campaigns are existing
@@ -31,8 +36,8 @@ contract ShopFrontHub is Stoppable, ShopFrontHubInterface, ShopFrontFactoryInter
         bool    avail; 
     }
     
-    ShopFrontFactoryInterface f; 
     AllProducts public allProducts; 
+    
     
 
     //Checking if the shopfront exists
@@ -41,15 +46,15 @@ contract ShopFrontHub is Stoppable, ShopFrontHubInterface, ShopFrontFactoryInter
         _;
     }
     
+    // Event Logs
     event LogNewGlobalProduct(address shopfront, address merchant, bytes32 anId, uint price, uint altprice, uint stock);
-    
     event LogShopfrontStop(address sender, address shopfront);
     event LogShopfrontStart(address sender, address shopfront);
     event LogNewShopfrontOwner(address sender, address shopfront, address newOwner);
     
     //Constructor?
-    function ShopFrontHUb(){
-        f = ShopFrontFactoryInterface(this);
+    function ShopFrontHub(address theShopFrontFactory){
+        f = ShopFrontFactoryInterface(theShopFrontFactory);
     }
     
     function getShopfrontCount()
@@ -60,12 +65,12 @@ contract ShopFrontHub is Stoppable, ShopFrontHubInterface, ShopFrontFactoryInter
             return shopfronts.length;
         }
         
-    function newShopfront()  
+    function createShopfront()  
         public
         returns (address shopfrontContract)
         {
             //Casting the campaign, good to mark trusted/untrusted
-            address trustedShopfront =  f.ShopFrontFactory();
+            address trustedShopfront =  f.newShopFront();
             
             shopfronts.push(trustedShopfront);
             shopfrontExists[trustedShopfront] = true; 
@@ -99,7 +104,7 @@ contract ShopFrontHub is Stoppable, ShopFrontHubInterface, ShopFrontFactoryInter
         
         //ShopFront trustedShopfront = ShopFront(shopfront);
         LogShopfrontStop(msg.sender, shopfront);
-        return(ShopFrontInterface(shopfront).runSwitch(false));
+        return(StoppableInterface(shopfront).runSwitch(false));
     }
     
     function startShopfront(address shopfront)
@@ -109,7 +114,7 @@ contract ShopFrontHub is Stoppable, ShopFrontHubInterface, ShopFrontFactoryInter
     {
          
         LogShopfrontStart(msg.sender, shopfront);
-        return(ShopFrontInterface(shopfront).runSwitch(true));
+        return(StoppableInterface(shopfront).runSwitch(true));
     }
     
     function changeShopfrontOwner(address shopfront, address newOwner)
@@ -119,7 +124,7 @@ contract ShopFrontHub is Stoppable, ShopFrontHubInterface, ShopFrontFactoryInter
     {
          
         LogNewShopfrontOwner(msg.sender, shopfront, newOwner);
-        return(ShopFrontInterface(shopfront).changeOwner(newOwner));
+        return(OwnedInterface(shopfront).changeOwner(newOwner));
     }
     
 }
