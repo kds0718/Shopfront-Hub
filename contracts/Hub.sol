@@ -8,53 +8,54 @@ Customer: Ability to buy products, ability to co-purchase products.
 pragma solidity ^0.4.14;
 
 import "./Stoppable.sol";
+import "./HubInterface.sol";
+import "./ShopFrontFactoryInterface.sol";
 import "./StoppableInterface.sol";
 import "./OwnedInterface.sol";
-import "./ShopFrontHubInterface.sol";
-import "./ShopFrontFactoryInterface.sol";
+import "./ShopFrontInterface.sol";
 
- 
+contract Hub is Stoppable, HubInterface {
+      
 
-contract ShopFrontHub is Stoppable, ShopFrontHubInterface {
-    
-    //ShopFrontFactory Interface
-    ShopFrontFactoryInterface f; 
-    
-
-    address[] public shopfronts; //Keep list of shopfronts created.
+    address[] public shopFronts; //Keep list of shopfronts created.
     //Mapping below is a safeguard feature for using addresses within other functions
-    mapping(address => bool) shopfrontExists; //Default is false, checking if campaigns are existing
+    mapping(address => bool) shopFrontExists; //Default is false, checking if campaigns are existing
     
     //Central Repository for All SKUs
     struct AllProducts {
-        address shopfront;
+        
         address merchant; 
-        bytes32 prodId; 
+        
         uint    price; //Price per unit in Ether. 
         uint    altprice; 
         uint    stock; 
         bool    avail; 
     }
     
-    AllProducts public allProducts; 
+     
+    /* Mapping the shopfront address to the item id. Each product should have a unique id.
+    Should allow each unique product in a unique shopfront to be identified. */ 
+    mapping (address => mapping(bytes32 => AllProducts)) public allProducts;
     
+    // Factory Interface
+    ShopFrontFactoryInterface f;
     
-
     //Checking if the shopfront exists
-    modifier onlyIfShopfront(address shopfront) { 
-        require(shopfrontExists[shopfront]==true); 
+    modifier onlyIfShopFront(address shopfront) { 
+        require(shopFrontExists[shopfront]==true); 
         _;
     }
     
     // Event Logs
+    event LogNewShopFront(address admin, address newShopFront);
     event LogNewGlobalProduct(address shopfront, address merchant, bytes32 anId, uint price, uint altprice, uint stock);
-    event LogShopfrontStop(address sender, address shopfront);
-    event LogShopfrontStart(address sender, address shopfront);
+    event LogShopFrontStop(address sender, address shopfront);
+    event LogShopFrontStart(address sender, address shopfront);
     event LogNewShopfrontOwner(address sender, address shopfront, address newOwner);
     
-    //Constructor?
-    function ShopFrontHub(address theShopFrontFactory){
-        f = ShopFrontFactoryInterface(theShopFrontFactory);
+    //Constructor
+    function Hub(address sfFactory) {
+        f = ShopFrontFactoryInterface(sfFactory);
     }
     
     function getShopfrontCount()
@@ -62,7 +63,7 @@ contract ShopFrontHub is Stoppable, ShopFrontHubInterface {
         constant 
         returns (uint shopfrontCount)
         {
-            return shopfronts.length;
+            return shopFronts.length;
         }
         
     function createShopfront()  
@@ -70,61 +71,68 @@ contract ShopFrontHub is Stoppable, ShopFrontHubInterface {
         returns (address shopfrontContract)
         {
             //Casting the campaign, good to mark trusted/untrusted
-            address trustedShopfront =  f.newShopFront();
-            
-            shopfronts.push(trustedShopfront);
-            shopfrontExists[trustedShopfront] = true; 
-            
-            return trustedShopfront; 
+             address trustedShopfront = f.newShopFront(); 
+              
+             shopFronts.push(trustedShopfront);
+             shopFrontExists[trustedShopfront] = true; 
+             LogNewShopFront(msg.sender, trustedShopfront);
+             return trustedShopfront; 
         }
      
-     function newGlobalProduct(address shopfront, address merchant, bytes32 theId, uint price, uint altprice, uint stock)
+     function newGlobalProduct(address shopfront, address merchant, bytes32 theId, uint thePrice, uint theAltPrice, uint theStock)
         public
-        onlyIfShopfront(shopfront)
+        onlyIfShopFront(shopfront)
         returns (bool success)
      {
-         allProducts.shopfront = shopfront; 
-         allProducts.merchant = merchant; 
-         allProducts.prodId = theId; 
-         allProducts.price = price; 
-         allProducts.altprice = altprice;
-         allProducts.stock = stock; /* Would need a way to reconcile stock with purchases/updates in shopfronts...*/
-         allProducts.avail = true; 
-         LogNewGlobalProduct(shopfront, merchant, theId, price, altprice, stock);
+         /* To Do - Implement a way to reconcile stock and price changes with shopfront. */
+          
+         allProducts[shopfront][theId].price = thePrice; 
+         allProducts[shopfront][theId].altprice = theAltPrice;
+         allProducts[shopfront][theId].stock = theStock; 
+         allProducts[shopfront][theId].avail = true; 
+         LogNewGlobalProduct(shopfront, merchant, theId, thePrice, theAltPrice, theStock);
          return true; 
      }
      
     // Pass-thru Admin Controls
-    
-    function stopShopfront(address shopfront)
+
+    function changeRunSwitch(address shopfront, bool toChange)
+        public
         onlyOwner
-        onlyIfShopfront(shopfront)
+        onlyIfShopFront(shopfront)
         returns (bool success)
     {
-        
-        //ShopFront trustedShopfront = ShopFront(shopfront);
-        LogShopfrontStop(msg.sender, shopfront);
-        return(StoppableInterface(shopfront).runSwitch(false));
+        if (toChange==true) {
+            LogShopFrontStart(msg.sender, shopfront);
+        } else if(toChange == false) {
+            LogShopFrontStop(msg.sender, shopfront);
+        }
+        success = StoppableInterface(shopfront).runSwitch(toChange);
+        return success; 
     }
-    
-    function startShopfront(address shopfront)
+       
+    function changeShopFrontOwner(address shopFront, address newOwner)
+        public
         onlyOwner
-        onlyIfShopfront(shopfront)
-        returns (bool succcess)
-    {
-         
-        LogShopfrontStart(msg.sender, shopfront);
-        return(StoppableInterface(shopfront).runSwitch(true));
-    }
-    
-    function changeShopfrontOwner(address shopfront, address newOwner)
-        onlyOwner
-        onlyIfShopfront(shopfront)
+        onlyIfShopFront(shopFront)
         returns (bool success)
     {
-         
-        LogNewShopfrontOwner(msg.sender, shopfront, newOwner);
-        return(OwnedInterface(shopfront).changeOwner(newOwner));
+       
+       LogNewShopfrontOwner(msg.sender, shopFront, newOwner);
+       /*Changing the recorded admin in the shopfront as well. */
+       ShopFrontInterface(shopFront).changeAdmin(newOwner); 
+       return(OwnedInterface(shopFront).changeOwner(newOwner)); 
     }
-    
+
+    //If there end up being multiple Hubs? Or a Hub needs to be reworked and redeployed? 
+    function changeHubinShopFront(address shopFront, address newHub)
+        public
+        onlyOwner
+        onlyIfShopFront(shopFront)
+        returns(bool success)
+        {
+            /*Event logged in ShopFront */
+            success = ShopFrontInterface(shopFront).changeHub(newHub);
+            return  success; 
+        }   
 }

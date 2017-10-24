@@ -2,9 +2,8 @@ pragma solidity ^0.4.14;
 
 import "./Owned.sol";
 import "./StoppableInterface.sol";
-import "./OwnedInterface.sol";
 
-contract Stoppable is Owned, StoppableInterface {
+contract Stoppable is Owned {
     bool    public  running; //An on/off switch that can be set by the contract holder
     
     event LogRunSwitch(address sender, bool switchSetting);

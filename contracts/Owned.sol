@@ -2,8 +2,9 @@
 
 pragma solidity ^0.4.14;
 
+import "./OwnedInterface.sol";
 
-contract Owned {
+contract Owned is OwnedInterface {
     address public owner; 
     
     event LogNewOwner(address sender,address oldOwner, address newOwner);

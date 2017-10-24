@@ -4,11 +4,11 @@ pragma solidity ^0.4.14;
 
 /*My thought is to have buyer1 initiate a copurchase through calling the 
 making a coPurchase contract, paying their share. Buyer2 would make a payment to this contract, too. 
-Buyer1 and Buyer2 would then initiate a buy through the 'CoBuy()' function in ShopFront which will use
-the isValidCoBuy modifier to verify the transaction. I started off trying to make this a smaller process with 
+Buyer1 and Buyer2 would then initiate a buy through the 'buyFromShopFront()'.I started off trying to make this a smaller process with 
 less functions but then it grew again... are there more ways to shorten in down keeping the security?*/
 
 import "./CopurchaseInterface.sol";
+import "./ShopFrontInterface.sol";
 
 contract Copurchase is CopurchaseInterface {
     mapping (address => bool) public buyers; 
@@ -22,11 +22,10 @@ contract Copurchase is CopurchaseInterface {
     mapping (address => uint) public copurchaseBalance; 
     /* Ideally should make sure that this is a valid shopfront, instead of a random address. 
     Could verify with ShopFrontHub in future.*/
-    address public theShopfront; 
+    
     address public buyer1;
     address public buyer2; 
-    bytes32 public itemId;
-    uint    public amount;
+
    
     event OnUnfinishedConfirmation(bytes32 key);
         
@@ -35,19 +34,18 @@ contract Copurchase is CopurchaseInterface {
     general agreement between two parties to purchase 'something' - sendToShopfront() might accidently send
     the wrong balance to theShopfront otherwise. */
     
-    function Copurchase(address buyerno2, address shopfront, bytes32 theId, uint howMany)
+    function Copurchase(address buyerno2, address shopfront)
+        public
         payable
     {
-        require(msg.sender != buyer2 && buyer2 != 0);
+        require(msg.sender != buyerno2 && buyerno2 != 0);
         buyers[msg.sender]=true;
         buyers[buyerno2] =true;
-        theShopfront = shopfront; 
-        itemId = theId; 
-        amount = howMany; 
+        
+
         copurchaseBalance[msg.sender] += msg.value;
         buyer1 = msg.sender;
         buyer2 = buyerno2; 
-        
     }
     
     modifier fromBuyer {require(buyers[msg.sender]); _;}
@@ -68,6 +66,7 @@ contract Copurchase is CopurchaseInterface {
     }
     
     function hashData(bytes data)
+        public
         constant
         returns (bytes32 hashed)
         {
@@ -87,7 +86,7 @@ contract Copurchase is CopurchaseInterface {
         return true; 
     }
     
-    function withdrawlShopfront()
+    function withdrawlCopurchase()
         fromBuyer
         public
         returns (bool success)
@@ -99,22 +98,28 @@ contract Copurchase is CopurchaseInterface {
         return true; 
     }
     
-    function sendToShopfront(address shopfront, bytes32 theId, uint howMany)
+    function buyFromShopFront(address shopfront, bytes32 theId, uint howMany)
         public
+        fromBuyer
+        isValidCoBuy
+        payable
         returns (bool success)
     {
-        /*Verify that this is for the right purchase. What if there is more than 
-        one copurchase going on between two parties?*/
-        require(theId == itemId);
-        require(howMany == amount);
-        /*Ensure that the shopfront is the one withdrawing the money, not any other
-        address.*/
-        require(msg.sender == theShopfront);
-        uint toSend = this.balance;
-        shopfront.transfer(toSend);
-        /*To Do - Think about event implementation. */
-        return true; 
-    }
+        copurchaseBalance[msg.sender] += msg.value; 
+        uint inTotal = this.balance; 
+        /* Getting the cost so that the contract can send the right amount 
+        to the shopfront */
+        uint theCost = ShopFrontInterface(shopfront).getTheETHCost(theId, howMany);
+        /*To Do - Think of how any left over money would get out of the contract. Could assume
+        50/50 and do some math to make sure left over goes to each buyers balance. */
         
+        ShopFrontInterface(shopfront).soloBuyProduct.value(theCost)(theId, howMany);
+
+        copurchaseBalance[buyer1] = 0;
+        copurchaseBalance[buyer2] = 0; 
+        
+        return true; 
+        
+    }       
     
 }

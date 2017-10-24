@@ -3,13 +3,11 @@
 pragma solidity ^0.4.14;
 
 import "./Stoppable.sol";
-import "./Copurchase.sol"; 
-import "./ShopFrontHub.sol";
+import "./ShopFrontInterface.sol";
+import "./HubInterface.sol";
 import "./BetterTokenInterface.sol"; 
-import "./CopurchaseInterface.sol";
 
-contract ShopFront is Stoppable, Copurchase
-
+contract ShopFront is Stoppable, ShopFrontInterface
 {
     address public admin; //Site admin
 
@@ -25,9 +23,6 @@ contract ShopFront is Stoppable, Copurchase
         bool    avail; //True when a product is available. False when it is removed. 
     }
     
-    //BetterToken Interface
-    BetterTokenInterface B; 
-    
     /*Map the ID of each object to the struct of their Merchant, Price, & Stock */
     mapping (bytes32 => OurProducts) public ourProducts; 
     
@@ -39,22 +34,45 @@ contract ShopFront is Stoppable, Copurchase
     event  LogProductAddition(address aMerchant, bytes32 anItemId, uint aPrice, uint altPrice, uint aStock);
     event  LogProductPurchased(address aBuyer, bytes32 boughtId, uint boughtStock);
     event  LogProductRemoval(address aMerchant, bytes32 anItemId, uint aPrice, uint altPrice, uint aStock);
+    event  LogNewHub(address sender, address newAdmin);
     
-    //Mapping of a mapping to coPurchase
-    mapping (address => mapping(address => uint256)) combinedMoney; 
-    mapping (address => mapping(address => bytes32)) itemToPurchase;
-    
+    //Modifiers     
     modifier onlyAdmin  { require(msg.sender == admin); _;}
     modifier onlyMerchant(address possibleM, bytes32 prodId) { require(ourProducts[prodId].merchant == possibleM); _; }
     modifier prodAvail(bytes32 theId) {require(ourProducts[theId].avail == true); _;}
 
 
 //Constructor
-function ShopFront(address shopfrontOwner) {
-    admin = shopfrontOwner;
+function ShopFront(address shopFrontOwner) {
+    admin = shopFrontOwner;
     theHub = msg.sender; 
     
-}    
+}
+
+/*There must be a way to seperate these two functions out to another ownership contract that could be inherited here. 
+But how would I be able to set the admin? And then I'd need to be able change the Hub address saved here as well... */
+
+function changeAdmin(address newAdmin)
+    public
+    returns (bool success)
+    {
+        require(msg.sender == admin || msg.sender == theHub);
+        //Event recorded in Hub
+        admin = newAdmin; 
+        return true; 
+    }
+
+function changeHub(address newHub)
+    public
+    returns (bool success)
+    {
+        require(msg.sender == theHub);
+        LogNewHub(msg.sender, newHub);
+        theHub = newHub;
+        return true;
+    }
+
+
 
 //Function to add products to the website.
 function addNewProduct(bytes32 theId, uint thePrice, uint theAltPrice, uint theStock)
@@ -70,7 +88,8 @@ function addNewProduct(bytes32 theId, uint thePrice, uint theAltPrice, uint theS
     /*To Do - Think of a way to have a merchant be validated so that not just anyone
     can update here. Valid list of merchants? */
     require(ourProducts[theId].merchant != msg.sender); 
-
+    /* To Do - How to ensure that each ID is unique? */
+    
     //Build the struct (with account to be done outside the contract)
     ourProducts[theId].merchant = msg.sender; 
     ourProducts[theId].price = thePrice;
@@ -83,7 +102,7 @@ function addNewProduct(bytes32 theId, uint thePrice, uint theAltPrice, uint theS
     /*Rework for Shopfront interface*/
     
     /*Assumption to only keep track of SKUs - prices and stock changes updates would need to be included */
-    require(ShopFrontHubInterface(theHub).newGlobalProduct(this, msg.sender, theId, thePrice, theAltPrice, theStock));
+    require(HubInterface(theHub).newGlobalProduct(this, msg.sender, theId, thePrice, theAltPrice, theStock));
     return true; 
 }
 
@@ -130,6 +149,16 @@ function changePrice(bytes32 theId, uint newETHPrice, uint newTOKPrice)
         return true; 
         
     }
+    
+function getTheETHCost(bytes32 theId, uint howMany)
+    public
+    constant 
+    returns (uint theCost)
+    {
+        uint thePrice = ourProducts[theId].price;
+        uint theTotal = thePrice*howMany; 
+        return theTotal;
+    }
 
 /*Function to buy a product in Ether- but the instructions said as a 'regular user', does
 that mean I need to keep a register of users?*/ 
@@ -164,38 +193,6 @@ function soloBuyProduct(bytes32 theId, uint howMany)
 
 }
 
-/*Function to cobuy a product. This assumes that cobuyer #1 initiates a Copurchase contract
-through Copurchase(buyer2). The cobuyer #1 will need to then call coBuy() as well  */
-
-function coBuy(bytes32 theId, uint howMany, address copurchaseContract)
-    onlyIfRunning
-    prodAvail(theId)
-    isValidCoBuy
-    public
-    payable
-    returns (bool success)
-{
-    uint toMerchant = 98; //Percentage to merchant
-    OurProducts memory product = ourProducts[theId];
-    require(howMany > 0); 
-    require(product.stock >= howMany);
-    /* Requiring the purchaser to pay exact. Do not want to deal with returning 
-    leftover money */
-    uint copurchaseBalance = copurchaseContract.balance;
-    require(copurchaseBalance == product.price); 
-    /* Vendor cannot buy their own product, false advertising data.*/
-    require(msg.sender != product.merchant);
-    product.stock -= howMany;
-    
-    require(CopurchaseInterface(copurchaseContract).sendToShopfront(this, theId, howMany));
-     
-    /* Event logged in copurchase contract because I wanted to get a way to 
-    log both buyers of the purchase */
-    return true; 
-    
-}
-    
-
 
 //Function with ability to remove product.
 function removeProduct(bytes32 removeId)
@@ -228,6 +225,7 @@ function makePaymentShopfront()
     returns (bool success)
 {
     balances[admin] += msg.value;
+    return true;
 }
 
 //Function to be able to withdrawl according to mapped balances
