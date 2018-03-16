@@ -1,8 +1,13 @@
 # Shopfront-Hub
-Refactoring Shopfront to Hub &amp; Spoke with additional controls and functionality
 
-Additions: 
-* Central SKU repository - only for SKU database (i.e. currently does not update stock, price, etc with changes).
-* Ability to pay with 3rd party coin
-* Hub & Spoke design
-* Additional controls and modifiers
+This is a smart contract system for a shop front on Ethereum. 
+
+* A hub deploys spokes (multiple shop fronts). 
+* It allows vendors to post items for sale and remove them with all items tracked through a central "SKU" type repository. 
+* A user can purchase items using Ether or an ERC20 token. 
+* Users can "co-purchase" an item together as well. 
+
+## To Do 
+
+* Write testing. 
+* Develop a front end. 
